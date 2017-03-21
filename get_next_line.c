@@ -1,72 +1,90 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: vpoltave <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2017/03/15 22:18:34 by vpoltave          #+#    #+#             */
+/*   Updated: 2017/03/17 14:11:31 by vpoltave         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
 #include "get_next_line.h"
 
-int 	give_me_newline(char **s, char **line)
+int		where_is_smth(int fd, char **line, char **s, char *buff)
+{
+	ssize_t	i;
+	char	*tmp;
+
+	while ((i = read(fd, buff, BUFF_SIZE)) > 0 || **s)
+	{
+		tmp = *s;
+		*s = (*s != NULL) ? ft_strjoin(*s, buff) : ft_strdup(buff);
+		free(tmp);
+		ft_strclr(buff);
+		if (ft_strchr(*s, '\n'))
+		{
+			where_is_n(&(*s), line);
+			ft_strdel(&buff);
+			return (1);
+		}
+		else if (!i && **s)
+		{
+			*line = ft_strsub(*s, 0, ft_strlen(*s));
+			*s = ft_strnew(0);
+			return (1);
+		}
+	}
+	if ((i == 0) && (ft_strlen(*s) == 0))
+		return (0);
+	return (1);
+}
+
+char	**where_is_bacon(const int fd, t_bacon **bacon)
+{
+	t_bacon *tmp;
+
+	tmp = *bacon;
+	while (tmp != NULL)
+	{
+		if ((tmp->fd) == fd)
+			return (&(tmp->s));
+		tmp = tmp->next;
+	}
+	tmp = (t_bacon *)malloc(sizeof(t_bacon));
+	tmp->s = ft_strnew(0);
+	tmp->fd = fd;
+	tmp->next = (*bacon);
+	(*bacon) = tmp;
+	return (&(tmp->s));
+}
+
+void	where_is_n(char **s, char **line)
 {
 	int i;
 
 	i = 0;
-	while (**s != '\n' && *(*s)++)
+	while (**s != '\n')
+	{
+		(*s)++;
 		i++;
-	if (**s == '\n')
-	{
-		*s -= i;
-		*line = ft_strsub(*s, 0, (size_t)i);
-		*s += i + 1;
 	}
-	else if (**s != '\n')
-	{
-		*s -= i;
-		*line = ft_strsub(*s, 0, BUFF_SIZE);
-		*s += i;
-		return (1);
-	}
-	return (0);
+	*s -= i;
+	*line = ft_strsub(*s, 0, (size_t)i);
+	*s += i + 1;
+	*s = ft_strsub(*s, 0, ft_strlen(*s));
 }
 
 int		get_next_line(const int fd, char **line)
 {
-	static char 	*s;
-	char 			*buff;
-	ssize_t			i;
-	int 			j;
+	char			*buff;
+	static t_bacon	*bacon;
+	char			**s;
 
 	buff = ft_strnew(BUFF_SIZE);
-	while ((i = read(fd, buff, BUFF_SIZE)) > 0)
-	{
-		buff[i] = '\0';
-		(s != NULL) ? (s = ft_strjoin(s, buff)) : (s = ft_strdup(buff));
-		while (!give_me_newline(&s, line))
-		{
-			printf("*line: %s\n", *line);
-			printf("s: %s\n", s);
-			printf("buff: %s\n", buff);
-			return (1);
-		}
-	}
-	if (i == (-1))
+	if ((fd < 0) || ((read(fd, buff, 0)) < 0) || (BUFF_SIZE <= 0))
 		return (-1);
-	if ((i == 0) && (ft_strlen(buff) == 0))
-		return (0);
+	s = where_is_bacon(fd, &bacon);
+	return (where_is_smth(fd, line, s, buff));
 }
-
-int main(int argc, char **argv)
-{
-	int fd;
-
-	if (argc != 2)
-	{
-		write(1, "error_1\n", 8);
-		return (-1);
-	}
-	if ((fd = open(argv[1], O_RDONLY)) == (-1))
-	{
-		write(1, "error_2\n", 8);
-		return (-2);
-	}
-	printf("\tWe are comin to Get_Next_Line() function\n");
-	while(get_next_line(fd,  &argv[1]))
-		printf("---------------------\n");
-	return (0);
-}
-
